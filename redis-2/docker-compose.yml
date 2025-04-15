@@ -1,0 +1,123 @@
+services:
+  redis-master:
+    image: redis
+    container_name: redis-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis-master.conf:/usr/local/etc/redis/redis.conf
+      - master-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - redis-network
+
+  redis-slave1:
+    image: redis
+    container_name: redis-slave1
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./redis-slave1.conf:/usr/local/etc/redis/redis.conf
+      - slave1-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - redis-network
+
+  redis-slave2:
+    image: redis
+    container_name: redis-slave2
+    ports:
+      - "6381:6379"
+    volumes:
+      - ./redis-slave2.conf:/usr/local/etc/redis/redis.conf
+      - slave2-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - redis-network
+
+  redis-sentinel1:
+    image: redis
+    container_name: redis-sentinel1
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./sentinel1.conf:/sentinel.conf:ro
+      - sentinel-data1:/data
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /data/conf
+        MASTER_IP=$$(getent hosts redis-master | awk '{ print $$1 }')
+        echo "Discovered master IP: $$MASTER_IP"
+        sed "s/redis-master/$$MASTER_IP/g" /sentinel.conf > /data/conf/sentinel.conf
+        sed -i 's/^dir .*/dir \/data/' /data/conf/sentinel.conf
+        while ! redis-cli -h $$MASTER_IP -p 6379 ping >/dev/null 2>&1; do
+          echo "Waiting for master..."
+          sleep 2
+        done
+        exec redis-sentinel /data/conf/sentinel.conf --sentinel announce-ip $$(hostname -i)
+    networks:
+      - redis-network
+
+  redis-sentinel2:
+    image: redis
+    container_name: redis-sentinel2
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./sentinel2.conf:/sentinel.conf:ro
+      - sentinel-data2:/data
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /data/conf
+        MASTER_IP=$$(getent hosts redis-master | awk '{ print $$1 }')
+        echo "Discovered master IP: $$MASTER_IP"
+        sed "s/redis-master/$$MASTER_IP/g" /sentinel.conf > /data/conf/sentinel.conf
+        sed -i 's/^dir .*/dir \/data/' /data/conf/sentinel.conf
+        while ! redis-cli -h $$MASTER_IP -p 6379 ping >/dev/null 2>&1; do
+          echo "Waiting for master..."
+          sleep 2
+        done
+        exec redis-sentinel /data/conf/sentinel.conf --sentinel announce-ip $$(hostname -i)
+    networks:
+      - redis-network
+
+  redis-sentinel3:
+    image: redis
+    container_name: redis-sentinel3
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./sentinel3.conf:/sentinel.conf:ro
+      - sentinel-data3:/data
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /data/conf
+        MASTER_IP=$$(getent hosts redis-master | awk '{ print $$1 }')
+        echo "Discovered master IP: $$MASTER_IP"
+        sed "s/redis-master/$$MASTER_IP/g" /sentinel.conf > /data/conf/sentinel.conf
+        sed -i 's/^dir .*/dir \/data/' /data/conf/sentinel.conf
+        while ! redis-cli -h $$MASTER_IP -p 6379 ping >/dev/null 2>&1; do
+          echo "Waiting for master..."
+          sleep 2
+        done
+        exec redis-sentinel /data/conf/sentinel.conf --sentinel announce-ip $$(hostname -i)
+    networks:
+      - redis-network
+
+volumes:
+  master-data:
+  slave1-data:
+  slave2-data:
+  sentinel-data1:
+  sentinel-data2:
+  sentinel-data3:
+
+networks:
+  redis-network:
+    driver: bridge
